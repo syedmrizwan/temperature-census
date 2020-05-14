@@ -93,6 +93,8 @@ func main() {
 		log.Fatalf("Failed to register views: %v", err)
 	}
 
+	view.Unregister(LatencyView)
+
 	// repl is the read, evaluate, print, loop
 	for {
 		if err := readEvaluateProcess(br); err != nil {
@@ -153,3 +155,10 @@ func processLine(ctx context.Context, in []byte) (out []byte, err error) {
 func sinceInMilliseconds(startTime time.Time) float64 {
 	return float64(time.Since(startTime).Nanoseconds()) / 1e6
 }
+
+//API
+//bfecbb35de69974dc8e56c12f3a90801
+//http://api.openweathermap.org/data/2.5/forecast?id=524901&APPID=bfecbb35de69974dc8e56c12f3a90801
+//
+//
+//api.openweathermap.org/data/2.5/weather?q=islamabad&appid=bfecbb35de69974dc8e56c12f3a90801
