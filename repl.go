@@ -89,11 +89,10 @@ func main() {
 	br := bufio.NewReader(os.Stdin)
 
 	// Register the views
-	if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
+	if err := view.Register(LatencyView, LineLengthView); err != nil {
 		log.Fatalf("Failed to register views: %v", err)
 	}
 
-	view.Unregister(LatencyView)
 
 	// repl is the read, evaluate, print, loop
 	for {
@@ -133,6 +132,12 @@ func readEvaluateProcess(br *bufio.Reader) (terr error) {
 	}
 
 	out, err := processLine(ctx, line)
+	if bytes.Equal(out,[]byte("UNREGISTER")){
+		view.Unregister(LineCountView)
+	}else{
+		view.Register(LineCountView)
+	}
+
 	if err != nil {
 		return err
 	}
