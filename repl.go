@@ -93,7 +93,6 @@ func main() {
 		log.Fatalf("Failed to register views: %v", err)
 	}
 
-
 	// repl is the read, evaluate, print, loop
 	for {
 		if err := readEvaluateProcess(br); err != nil {
@@ -132,10 +131,11 @@ func readEvaluateProcess(br *bufio.Reader) (terr error) {
 	}
 
 	out, err := processLine(ctx, line)
-	if bytes.Equal(out,[]byte("UNREGISTER")){
+	if bytes.Equal(out, []byte("UNREGISTER")) {
 		view.Unregister(LineCountView)
-	}else{
 		view.Register(LineCountView)
+	} else {
+		//view.Register(LineCountView)
 	}
 
 	if err != nil {
