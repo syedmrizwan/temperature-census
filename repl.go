@@ -46,7 +46,7 @@ var (
 		Name:        "demo/lines_in",
 		Measure:     MLineLengths,
 		Description: "The number of lines from standard input",
-		Aggregation: view.Count(),
+		Aggregation: view.LastValue(),
 	}
 
 	LineLengthView = &view.View{
@@ -131,12 +131,6 @@ func readEvaluateProcess(br *bufio.Reader) (terr error) {
 	}
 
 	out, err := processLine(ctx, line)
-	if bytes.Equal(out, []byte("UNREGISTER")) {
-		view.Unregister(LineCountView)
-		view.Register(LineCountView)
-	} else {
-		//view.Register(LineCountView)
-	}
 
 	if err != nil {
 		return err
@@ -149,9 +143,19 @@ func readEvaluateProcess(br *bufio.Reader) (terr error) {
 // transforms it. Currently it just capitalizes it.
 func processLine(ctx context.Context, in []byte) (out []byte, err error) {
 	startTime := time.Now()
+	metricValue := int64(len(in))
+
+	if bytes.Equal(in, []byte("UNREGISTER")) {
+		view.Unregister(LineCountView)
+		view.Register(LineCountView)
+		return bytes.ToUpper(in), nil
+	} else if bytes.Equal(in, []byte("NEGATIVE")) {
+		metricValue = -15
+	}
+
 	defer func() {
 		stats.Record(ctx, MLatencyMs.M(sinceInMilliseconds(startTime)),
-			MLineLengths.M(int64(len(in))))
+			MLineLengths.M(metricValue))
 	}()
 
 	return bytes.ToUpper(in), nil
