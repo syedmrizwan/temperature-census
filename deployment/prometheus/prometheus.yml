@@ -31,20 +31,10 @@ scrape_configs:
     static_configs:
       - targets: ['127.0.0.1:9090']
 
-  - job_name: 'node'
+  - job_name: 'exporter'
     scrape_interval: 2s
     static_configs:
-      - targets: ['127.0.0.1:9100']
-
-  - job_name: 'ocmetricstutorial'
-    scrape_interval: 10s
-    static_configs:
       - targets: ['127.0.0.1:8888']
-  
-  - job_name: 'exporter'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['127.0.0.1:8000']
 
 remote_write:
   - url: "http://127.0.0.1:8086/api/v1/prom/write?db=prometheus&u=admin&p=admin"
