@@ -15,6 +15,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"github.com/go-resty/resty/v2"
 )
 
 var (
@@ -163,6 +164,17 @@ func processLine(ctx context.Context, in []byte) (out []byte, err error) {
 
 func sinceInMilliseconds(startTime time.Time) float64 {
 	return float64(time.Since(startTime).Nanoseconds()) / 1e6
+}
+
+func getTemperatureDetail()([]byte, error){
+	client := resty.New()
+	url := "http://api.openweathermap.org/data/2.5/forecast?id=524901&APPID=bfecbb35de69974dc8e56c12f3a90801"
+	resp, err := client.R().Get(url)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	return resp.Body(), nil
 }
 
 //API
