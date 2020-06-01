@@ -4,12 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	//"contrib.go.opencensus.io/exporter/prometheus"
 	"fmt"
 	"io"
 	"log"
-	//"net/http"
-	//"os"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -61,11 +58,7 @@ var (
 )
 
 func main() {
-	temp := <-getTemperatureDetail()
-	if temp.Err == nil {
-		fmt.Println(temp.TemperatureDetail.Temperature)
-	}
-
+	doEvery(2*time.Second, getTemperatureDetail)
 	//// Register the views, it is imperative that this step exists
 	//// lest recorded metrics will be dropped and never exported.
 	//if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
@@ -172,26 +165,26 @@ func sinceInMilliseconds(startTime time.Time) float64 {
 	return float64(time.Since(startTime).Nanoseconds()) / 1e6
 }
 
-func getTemperatureDetail() <-chan *TemperatureData {
-	r := make(chan *TemperatureData)
-	go func() {
-		client := resty.New()
-		url := "http://api.openweathermap.org/data/2.5/weather?id=1162015&APPID=bfecbb35de69974dc8e56c12f3a90801"
-		resp, err := client.R().Get(url)
-		if err != nil {
-			fmt.Println(err)
-			r <- &TemperatureData{Err: err}
-			return
-		}
+func getTemperatureDetail() (*TemperatureDetail, error) {
+	client := resty.New()
+	url := "http://api.openweathermap.org/data/2.5/weather?id=1162015&APPID=bfecbb35de69974dc8e56c12f3a90801"
+	resp, err := client.R().Get(url)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 
-		var tempDetail TemperatureDetail
-		tempDetail.Temperature = gjson.Get(string(resp.Body()), `main.temp`).Float()
-		tempDetail.FellsLike = gjson.Get(string(resp.Body()), `main.feels_like`).Float()
-		tempDetail.Pressure = gjson.Get(string(resp.Body()), `main.pressure`).Float()
-		tempDetail.Humidity = gjson.Get(string(resp.Body()), `main.humidity`).Float()
+	var tempDetail TemperatureDetail
+	tempDetail.Temperature = gjson.Get(string(resp.Body()), `main.temp`).Float()
+	tempDetail.FellsLike = gjson.Get(string(resp.Body()), `main.feels_like`).Float()
+	tempDetail.Pressure = gjson.Get(string(resp.Body()), `main.pressure`).Float()
+	tempDetail.Humidity = gjson.Get(string(resp.Body()), `main.humidity`).Float()
+	fmt.Println(tempDetail.Temperature)
+	return &tempDetail, nil
+}
 
-		r <- &TemperatureData{TemperatureDetail: tempDetail}
-	}()
-
-	return r
+func doEvery(d time.Duration, f func() (*TemperatureDetail, error)) {
+	for range time.Tick(d) {
+		f()
+	}
 }
