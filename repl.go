@@ -4,18 +4,19 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	//"contrib.go.opencensus.io/exporter/prometheus"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"os"
+	//"net/http"
+	//"os"
 	"time"
 
-	"contrib.go.opencensus.io/exporter/prometheus"
+	"github.com/go-resty/resty/v2"
+	"github.com/tidwall/gjson"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-	"github.com/go-resty/resty/v2"
 )
 
 var (
@@ -60,49 +61,54 @@ var (
 )
 
 func main() {
-	// Register the views, it is imperative that this step exists
-	// lest recorded metrics will be dropped and never exported.
-	if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
-		log.Fatalf("Failed to register the views: %v", err)
+	temp := <-getTemperatureDetail()
+	if temp.Err == nil {
+		fmt.Println(temp.TemperatureDetail.Temperature)
 	}
 
-	// Create the Prometheus exporter.
-	pe, err := prometheus.NewExporter(prometheus.Options{
-		Namespace: "exporter",
-	})
-	if err != nil {
-		log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
-	}
-
-	// Now finally run the Prometheus exporter as a scrape endpoint.
-	// We'll run the server on port 8888.
-	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", pe)
-		if err := http.ListenAndServe(":8888", mux); err != nil {
-			log.Fatalf("Failed to run Prometheus scrape endpoint: %v", err)
-		}
-	}()
-
-	// In a REPL:
-	//   1. Read input
-	//   2. process input
-	br := bufio.NewReader(os.Stdin)
-
-	// Register the views
-	if err := view.Register(LatencyView, LineLengthView); err != nil {
-		log.Fatalf("Failed to register views: %v", err)
-	}
-
-	// repl is the read, evaluate, print, loop
-	for {
-		if err := readEvaluateProcess(br); err != nil {
-			if err == io.EOF {
-				return
-			}
-			log.Fatal(err)
-		}
-	}
+	//// Register the views, it is imperative that this step exists
+	//// lest recorded metrics will be dropped and never exported.
+	//if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
+	//	log.Fatalf("Failed to register the views: %v", err)
+	//}
+	//
+	//// Create the Prometheus exporter.
+	//pe, err := prometheus.NewExporter(prometheus.Options{
+	//	Namespace: "exporter",
+	//})
+	//if err != nil {
+	//	log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
+	//}
+	//
+	//// Now finally run the Prometheus exporter as a scrape endpoint.
+	//// We'll run the server on port 8888.
+	//go func() {
+	//	mux := http.NewServeMux()
+	//	mux.Handle("/metrics", pe)
+	//	if err := http.ListenAndServe(":8888", mux); err != nil {
+	//		log.Fatalf("Failed to run Prometheus scrape endpoint: %v", err)
+	//	}
+	//}()
+	//
+	//// In a REPL:
+	////   1. Read input
+	////   2. process input
+	//br := bufio.NewReader(os.Stdin)
+	//
+	//// Register the views
+	//if err := view.Register(LatencyView, LineLengthView); err != nil {
+	//	log.Fatalf("Failed to register views: %v", err)
+	//}
+	//
+	//// repl is the read, evaluate, print, loop
+	//for {
+	//	if err := readEvaluateProcess(br); err != nil {
+	//		if err == io.EOF {
+	//			return
+	//		}
+	//		log.Fatal(err)
+	//	}
+	//}
 }
 
 // readEvaluateProcess reads a line from the input reader and
@@ -166,20 +172,26 @@ func sinceInMilliseconds(startTime time.Time) float64 {
 	return float64(time.Since(startTime).Nanoseconds()) / 1e6
 }
 
-func getTemperatureDetail()([]byte, error){
-	client := resty.New()
-	url := "http://api.openweathermap.org/data/2.5/forecast?id=524901&APPID=bfecbb35de69974dc8e56c12f3a90801"
-	resp, err := client.R().Get(url)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	return resp.Body(), nil
-}
+func getTemperatureDetail() <-chan *TemperatureData {
+	r := make(chan *TemperatureData)
+	go func() {
+		client := resty.New()
+		url := "http://api.openweathermap.org/data/2.5/weather?id=1162015&APPID=bfecbb35de69974dc8e56c12f3a90801"
+		resp, err := client.R().Get(url)
+		if err != nil {
+			fmt.Println(err)
+			r <- &TemperatureData{Err: err}
+			return
+		}
 
-//API
-//bfecbb35de69974dc8e56c12f3a90801
-//http://api.openweathermap.org/data/2.5/forecast?id=524901&APPID=bfecbb35de69974dc8e56c12f3a90801
-//
-//
-//api.openweathermap.org/data/2.5/weather?q=islamabad&appid=bfecbb35de69974dc8e56c12f3a90801
+		var tempDetail TemperatureDetail
+		tempDetail.Temperature = gjson.Get(string(resp.Body()), `main.temp`).Float()
+		tempDetail.FellsLike = gjson.Get(string(resp.Body()), `main.feels_like`).Float()
+		tempDetail.Pressure = gjson.Get(string(resp.Body()), `main.pressure`).Float()
+		tempDetail.Humidity = gjson.Get(string(resp.Body()), `main.humidity`).Float()
+
+		r <- &TemperatureData{TemperatureDetail: tempDetail}
+	}()
+
+	return r
+}
