@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"contrib.go.opencensus.io/exporter/prometheus"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -58,50 +61,45 @@ var (
 )
 
 func main() {
-	doEvery(2*time.Second, getTemperatureDetail)
-	//// Register the views, it is imperative that this step exists
-	//// lest recorded metrics will be dropped and never exported.
-	//if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
-	//	log.Fatalf("Failed to register the views: %v", err)
-	//}
-	//
-	//// Create the Prometheus exporter.
-	//pe, err := prometheus.NewExporter(prometheus.Options{
-	//	Namespace: "exporter",
-	//})
-	//if err != nil {
-	//	log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
-	//}
-	//
-	//// Now finally run the Prometheus exporter as a scrape endpoint.
-	//// We'll run the server on port 8888.
-	//go func() {
-	//	mux := http.NewServeMux()
-	//	mux.Handle("/metrics", pe)
-	//	if err := http.ListenAndServe(":8888", mux); err != nil {
-	//		log.Fatalf("Failed to run Prometheus scrape endpoint: %v", err)
-	//	}
-	//}()
-	//
-	//// In a REPL:
-	////   1. Read input
-	////   2. process input
-	//br := bufio.NewReader(os.Stdin)
-	//
-	//// Register the views
-	//if err := view.Register(LatencyView, LineLengthView); err != nil {
-	//	log.Fatalf("Failed to register views: %v", err)
-	//}
-	//
-	//// repl is the read, evaluate, print, loop
-	//for {
-	//	if err := readEvaluateProcess(br); err != nil {
-	//		if err == io.EOF {
-	//			return
-	//		}
-	//		log.Fatal(err)
-	//	}
-	//}
+	//doEvery(2*time.Second, getTemperatureDetail)
+	// Register the views, it is imperative that this step exists
+	// lest recorded metrics will be dropped and never exported.
+	if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
+		log.Fatalf("Failed to register the views: %v", err)
+	}
+
+	// Create the Prometheus exporter.
+	pe, err := prometheus.NewExporter(prometheus.Options{
+		Namespace: "exporter",
+	})
+	if err != nil {
+		log.Fatalf("Failed to create the Prometheus stats exporter: %v", err)
+	}
+
+	// Now finally run the Prometheus exporter as a scrape endpoint.
+	// We'll run the server on port 8888.
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", pe)
+		if err := http.ListenAndServe(":8888", mux); err != nil {
+			log.Fatalf("Failed to run Prometheus scrape endpoint: %v", err)
+		}
+	}()
+
+	// In a REPL:
+	//   1. Read input
+	//   2. process input
+	br := bufio.NewReader(os.Stdin)
+
+	// repl is the read, evaluate, print, loop
+	for {
+		if err := readEvaluateProcess(br); err != nil {
+			if err == io.EOF {
+				return
+			}
+			log.Fatal(err)
+		}
+	}
 }
 
 // readEvaluateProcess reads a line from the input reader and
