@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -20,6 +19,9 @@ import (
 )
 
 var (
+	//Temperature detail measures
+	MTemperature = stats.Float64("temperature", "The temperature in Fahrenheit", "F")
+
 	// The latency in milliseconds
 	MLatencyMs = stats.Float64("repl/latency", "The latency in milliseconds per REPL loop", "ms")
 
@@ -34,6 +36,13 @@ var (
 )
 
 var (
+	TemperatureView = &view.View{
+		Name:        "demo/temperature",
+		Measure:     MTemperature,
+		Description: "Temperature of Islamabad",
+		Aggregation: view.LastValue(),
+	}
+
 	LatencyView = &view.View{
 		Name:        "demo/latency",
 		Measure:     MLatencyMs,
@@ -61,10 +70,9 @@ var (
 )
 
 func main() {
-	//doEvery(2*time.Second, getTemperatureDetail)
 	// Register the views, it is imperative that this step exists
 	// lest recorded metrics will be dropped and never exported.
-	if err := view.Register(LatencyView, LineCountView, LineLengthView); err != nil {
+	if err := view.Register(LatencyView, LineCountView, LineLengthView, TemperatureView); err != nil {
 		log.Fatalf("Failed to register the views: %v", err)
 	}
 
@@ -86,20 +94,21 @@ func main() {
 		}
 	}()
 
+	doEvery(2*time.Second, getTemperatureDetail)
 	// In a REPL:
 	//   1. Read input
 	//   2. process input
-	br := bufio.NewReader(os.Stdin)
+	//br := bufio.NewReader(os.Stdin)
 
 	// repl is the read, evaluate, print, loop
-	for {
-		if err := readEvaluateProcess(br); err != nil {
-			if err == io.EOF {
-				return
-			}
-			log.Fatal(err)
-		}
-	}
+	//for {
+	//	if err := readEvaluateProcess(br); err != nil {
+	//		if err == io.EOF {
+	//			return
+	//		}
+	//		log.Fatal(err)
+	//	}
+	//}
 }
 
 // readEvaluateProcess reads a line from the input reader and
@@ -178,6 +187,11 @@ func getTemperatureDetail() (*TemperatureDetail, error) {
 	tempDetail.Pressure = gjson.Get(string(resp.Body()), `main.pressure`).Float()
 	tempDetail.Humidity = gjson.Get(string(resp.Body()), `main.humidity`).Float()
 	fmt.Println(tempDetail.Temperature)
+
+	defer func() {
+		stats.Record(context.Background(), MTemperature.M(tempDetail.Temperature))
+	}()
+
 	return &tempDetail, nil
 }
 
