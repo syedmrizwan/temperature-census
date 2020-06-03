@@ -22,6 +22,8 @@ var (
 	//Temperature detail measures
 	MTemperature = stats.Float64("temperature", "The temperature in Fahrenheit", "F")
 
+	MFeelsLike = stats.Float64("feels_like", "The temperature feel like in Fahrenheit", "F")
+
 	// The latency in milliseconds
 	MLatencyMs = stats.Float64("repl/latency", "The latency in milliseconds per REPL loop", "ms")
 
@@ -39,6 +41,13 @@ var (
 	TemperatureView = &view.View{
 		Name:        "demo/temperature",
 		Measure:     MTemperature,
+		Description: "Temperature of Islamabad",
+		Aggregation: view.LastValue(),
+	}
+
+	FeelLikeView = &view.View{
+		Name:        "demo/feel_like",
+		Measure:     MFeelsLike,
 		Description: "Temperature of Islamabad",
 		Aggregation: view.LastValue(),
 	}
@@ -72,7 +81,7 @@ var (
 func main() {
 	// Register the views, it is imperative that this step exists
 	// lest recorded metrics will be dropped and never exported.
-	if err := view.Register(LatencyView, LineCountView, LineLengthView, TemperatureView); err != nil {
+	if err := view.Register(LatencyView, LineCountView, LineLengthView, TemperatureView, FeelLikeView); err != nil {
 		log.Fatalf("Failed to register the views: %v", err)
 	}
 
@@ -183,13 +192,13 @@ func getTemperatureDetail() (*TemperatureDetail, error) {
 
 	var tempDetail TemperatureDetail
 	tempDetail.Temperature = gjson.Get(string(resp.Body()), `main.temp`).Float()
-	tempDetail.FellsLike = gjson.Get(string(resp.Body()), `main.feels_like`).Float()
+	tempDetail.FeelsLike = gjson.Get(string(resp.Body()), `main.feels_like`).Float()
 	tempDetail.Pressure = gjson.Get(string(resp.Body()), `main.pressure`).Float()
 	tempDetail.Humidity = gjson.Get(string(resp.Body()), `main.humidity`).Float()
 	fmt.Println(tempDetail.Temperature)
 
 	defer func() {
-		stats.Record(context.Background(), MTemperature.M(tempDetail.Temperature))
+		stats.Record(context.Background(), MTemperature.M(tempDetail.Temperature), MFeelsLike.M(tempDetail.FeelsLike))
 	}()
 
 	return &tempDetail, nil
