@@ -24,6 +24,10 @@ var (
 
 	MFeelsLike = stats.Float64("feels_like", "The temperature feel like in Fahrenheit", "F")
 
+	MPressue = stats.Float64("pressure", "Pressure", "F")
+
+	MHumidity = stats.Float64("humidity", "Humidity", "F")
+
 	// The latency in milliseconds
 	MLatencyMs = stats.Float64("repl/latency", "The latency in milliseconds per REPL loop", "ms")
 
@@ -49,6 +53,20 @@ var (
 		Name:        "demo/feel_like",
 		Measure:     MFeelsLike,
 		Description: "Temperature of Islamabad",
+		Aggregation: view.LastValue(),
+	}
+
+	HumidityView = &view.View{
+		Name:        "demo/humidity",
+		Measure:     MHumidity,
+		Description: "Humidity in Islamabad",
+		Aggregation: view.LastValue(),
+	}
+
+	PressureView = &view.View{
+		Name:        "demo/pressure",
+		Measure:     MPressue,
+		Description: "Pressure in Islamabad",
 		Aggregation: view.LastValue(),
 	}
 
@@ -81,7 +99,8 @@ var (
 func main() {
 	// Register the views, it is imperative that this step exists
 	// lest recorded metrics will be dropped and never exported.
-	if err := view.Register(LatencyView, LineCountView, LineLengthView, TemperatureView, FeelLikeView); err != nil {
+	if err := view.Register(LatencyView, LineCountView, LineLengthView, TemperatureView,
+		FeelLikeView, PressureView, HumidityView); err != nil {
 		log.Fatalf("Failed to register the views: %v", err)
 	}
 
@@ -198,7 +217,8 @@ func getTemperatureDetail() (*TemperatureDetail, error) {
 	fmt.Println(tempDetail.Temperature)
 
 	defer func() {
-		stats.Record(context.Background(), MTemperature.M(tempDetail.Temperature), MFeelsLike.M(tempDetail.FeelsLike))
+		stats.Record(context.Background(), MTemperature.M(tempDetail.Temperature), MFeelsLike.M(tempDetail.FeelsLike),
+			MPressue.M(tempDetail.Pressure), MHumidity.M(tempDetail.Humidity))
 	}()
 
 	return &tempDetail, nil
